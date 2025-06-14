@@ -1,106 +1,217 @@
 "use client";
-import { FC } from "react";
+
+import { FC, memo, useCallback, useMemo } from "react";
 import { FixedSizeList as List, ListChildComponentProps } from "react-window";
 import { SatelliteData } from "@/types";
+import { clsx } from "clsx";
+import { useSelector, useDispatch } from "react-redux";
+import { AppDispatch } from "@/app/store/store";
 
-// These types are now in your shared types file, but keeping them here for context is fine
-// if this component is the only place they are used.
-// Best practice is to import them from '@/types'
+// Import actions from BOTH slices
+import {
+  toggleSelection,
+  selectSelectedIds,
+  selectSelectionError,
+  selectSelectionCount,
+} from "@/app/store/satelliteSelectionSlice";
+import { toggleSatelliteData } from "@/app/store/satelliteDataSlice";
+
+// --- TYPES & CONFIGURATION (Unchanged) ---
 type SortKey = keyof SatelliteData;
 interface SortConfig {
   key: SortKey;
-  direction: 'asc' | 'desc';
+  direction: "asc" | "desc";
 }
-
+const SELECTION_LIMIT = 10;
+const COLUMN_DEFINITIONS: {
+  key: SortKey;
+  label: string;
+  width: string;
+  align?: "left" | "right";
+}[] = [
+  { key: "name", label: "Name", width: "w-3/12" },
+  { key: "noradCatId", label: "NORAD ID", width: "w-3/12" },
+  { key: "orbitCode", label: "Orbit", width: "w-2/12" },
+  { key: "objectType", label: "Type", width: "w-2/12" },
+  { key: "countryCode", label: "Country", width: "w-2/12" },
+  { key: "launchDate", label: "Launch Date", width: "w-3/12" },
+];
 interface SatellitesTableProps {
   data: SatelliteData[];
   onSort: (key: SortKey) => void;
   sortConfig: SortConfig;
 }
 
-const ROW_HEIGHT = 50;
+// --- CHILD COMPONENTS (Updated TableRow) ---
 
-// A small component for the sort icon
-const SortIcon = ({ direction }: { direction: 'asc' | 'desc' }) => {
-  return <span className="ml-2">{direction === 'asc' ? '▲' : '▼'}</span>;
-};
+const SortIcon = memo(({ direction }: { direction: "asc" | "desc" }) => (
+  <span className="ml-2">{direction === "asc" ? "▲" : "▼"}</span>
+));
+SortIcon.displayName = "SortIcon";
 
-const SatellitesTable: FC<SatellitesTableProps> = ({ data, onSort, sortConfig }) => {
-  
-  // A reusable component for the clickable table headers
-  const HeaderCell: FC<{ title: string; sortKey: SortKey; className?: string }> = ({ title, sortKey, className }) => (
-    <div 
-      className={`p-3 w-1/7 font-semibold cursor-pointer select-none flex items-center ${className || ''}`} 
+const TableHeaderCell: FC<{
+  label: string;
+  sortKey: SortKey;
+  isSorted: boolean;
+  sortDirection: "asc" | "desc";
+  onSort: (key: SortKey) => void;
+  align?: "left" | "right";
+}> = memo(
+  ({ label, sortKey, isSorted, sortDirection, onSort, align = "left" }) => (
+    <button
       onClick={() => onSort(sortKey)}
+      className={clsx(
+        "flex w-full items-center p-3 text-left text-xs font-semibold uppercase text-slate-400 hover:text-white focus:outline-none focus:ring-1 focus:ring-blue-500",
+        align === "right" ? "justify-end" : "justify-start"
+      )}
     >
-      {title}
-      {sortConfig.key === sortKey && <SortIcon direction={sortConfig.direction} />}
-    </div>
-  );
-  
-  const Row = ({ index, style }: ListChildComponentProps) => {
-    const sat = data[index];
+      {" "}
+      {label} {isSorted && <SortIcon direction={sortDirection} />}{" "}
+    </button>
+  )
+);
+TableHeaderCell.displayName = "TableHeaderCell";
+
+// 1. SIMPLIFY TableRow: It only needs ONE handler that takes the full satellite object.
+const TableRow = memo(
+  ({
+    index,
+    style,
+    data: rowData,
+  }: ListChildComponentProps<{
+    satellites: SatelliteData[];
+    columns: typeof COLUMN_DEFINITIONS;
+    selectedIds: Set<string>;
+    // The handler now expects the full satellite object.
+    toggleSelection: (satellite: SatelliteData) => void;
+  }>) => {
+    const { satellites, columns, selectedIds, toggleSelection } = rowData;
+    const sat = satellites[index];
+    const isSelected = selectedIds.has(sat.noradCatId);
+
     return (
       <div
         style={style}
-        className="border-t border-slate-600 hover:bg-slate-600 flex w-full items-center"
+        className={clsx(
+          "flex w-full items-center border-b border-slate-700/50 text-sm ",
+          !isSelected
+            ? "bg-[#1A202C] text-slate-200"
+            : "bg-[#2D3748] text-cyan-300",
+          "hover:bg-slate-600 transition-colors duration-150"
+        )}
       >
-        <div className="p-3 w-1/7 flex items-center justify-center">
-          <input 
-            type="checkbox" 
-            className="w-4 h-4 text-blue-600 bg-slate-600 border-slate-500 rounded focus:ring-blue-500 focus:ring-2"
-            onChange={(e) => {
-              // Handle checkbox change here
-              console.log(`Satellite ${sat.name} selected:`, e.target.checked);
-            }}
+        <div className="flex w-[5%] items-center justify-center p-3">
+          {/* 2. CORRECT onChange: Call the single handler with the full 'sat' object. */}
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => toggleSelection(sat)}
+            className="h-4 w-4 cursor-pointer rounded-sm border-slate-500 bg-slate-600 text-blue-500 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+            aria-label={`Select satellite ${sat.name}`}
           />
         </div>
-        <div className="p-3 w-1/7 truncate">{sat.name}</div>
-        <div className="p-3 w-1/7 truncate">{sat.noradCatId}</div>
-        <div className="p-3 w-1/7 truncate">{sat.orbitCode}</div>
-        <div className="p-3 w-1/7 truncate">{sat.objectType}</div>
-        <div className="p-3 w-1/7 truncate">{sat.countryCode}</div>
-        <div className="p-3 w-1/7 truncate">{sat.launchDate}</div>
+        {columns.map((col) => (
+          <div
+            key={col.key}
+            className={clsx(" p-3", isSelected ? "whitespace-normal break-words" : "truncate", col.width)}
+
+          >
+            {sat[col.key]}
+          </div>
+        ))}
       </div>
     );
+  }
+);
+TableRow.displayName = "TableRow";
+
+// --- MAIN COMPONENT (Refactored) ---
+
+const SatellitesTable: FC<SatellitesTableProps> = ({
+  data,
+  onSort,
+  sortConfig,
+}) => {
+  const dispatch: AppDispatch = useDispatch();
+
+  // Get state from the Redux store (this part is correct)
+  const selectedIdsArray = useSelector(selectSelectedIds);
+  const selectionCount = useSelector(selectSelectionCount);
+  const selectionError = useSelector(selectSelectionError);
+
+  const selectedIdsSet = useMemo(
+    () => new Set(selectedIdsArray),
+    [selectedIdsArray]
+  );
+
+  // 3. COMBINE LOGIC: Create a single handler that dispatches to BOTH slices.
+  const handleToggleSelection = useCallback(
+    (satellite: SatelliteData) => {
+      // Dispatch to the slice that stores only IDs
+      dispatch(toggleSelection(satellite.noradCatId));
+
+      // ALSO dispatch to the slice that stores the full data objects
+      dispatch(toggleSatelliteData(satellite));
+    },
+    [dispatch]
+  );
+
+  // 4. SIMPLIFY itemData: Pass only the single, unified handler.
+  const itemData = {
+    satellites: data,
+    columns: COLUMN_DEFINITIONS,
+    selectedIds: selectedIdsSet,
+    toggleSelection: handleToggleSelection,
   };
 
   return (
-    <div className="overflow-x-auto bg-slate-700 rounded-2xl">
-      {/* Table Header */}
-      <div className="bg-slate-800 text-slate-300 uppercase sticky top-0 z-10">
-        <div className="flex w-full min-w-full items-center">
-          <div className="p-3 w-1/7 font-semibold flex items-center justify-center">
-            {/* You could add a select-all checkbox here */}
-          </div>
-          <HeaderCell title="Name" sortKey="name" />
-          {/* --- CHANGES START HERE --- */}
-          <HeaderCell title="NORAD ID" sortKey="noradCatId" />
-          <HeaderCell title="Orbit Code" sortKey="orbitCode" />
-          <HeaderCell title="Object Type" sortKey="objectType" />
-          <HeaderCell title="Country" sortKey="countryCode" />
-          <HeaderCell title="Launch Date" sortKey="launchDate" />
-          {/* --- CHANGES END HERE --- */}
+    <div className="space-y-4 bg-slate-800 p-6 rounded-xl">
+      <div className="flex flex-wrap justify-between items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-white">Satellite Data</h2>
+          <p className="text-sm text-slate-400 mt-1">
+            Selected: {selectionCount} / {SELECTION_LIMIT}
+          </p>
+        </div>
+        {selectionError && (
+          <p className="text-sm text-red-400">{selectionError}</p>
+        )}
+      </div>
+      <div className="flex h-[600px] w-full flex-col bg-[#1A202C] rounded-lg">
+        <div className="flex flex-shrink-0 bg-[#1A202C] h-12 rounded-t-lg">
+          <div className="flex w-[5%] items-center justify-center p-3 "></div>
+          {COLUMN_DEFINITIONS.map((col) => (
+            <div key={col.key} className={col.width}>
+              <TableHeaderCell
+                label={col.label}
+                sortKey={col.key}
+                onSort={onSort}
+                isSorted={sortConfig.key === col.key}
+                sortDirection={sortConfig.direction}
+                align={col.align}
+              />
+            </div>
+          ))}
+        </div>
+        <div className="flex-grow">
+          {data.length > 0 ? (
+            <List
+              height={552}
+              itemCount={data.length}
+              itemSize={48}
+              width="100%"
+              itemData={itemData}
+              className="[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500"
+            >
+              {TableRow}
+            </List>
+          ) : (
+            <div className="flex h-full items-center justify-center text-slate-400">
+              No satellites found.
+            </div>
+          )}
         </div>
       </div>
-      
-      {/* Virtualized Table Body */}
-      {data.length > 0 ? (
-        <div className="text-sm text-left text-slate-200">
-          <List
-            height={600}
-            itemCount={data.length}
-            itemSize={ROW_HEIGHT}
-            width="100%"
-          >
-            {Row}
-          </List>
-        </div>
-      ) : (
-        <div className="text-center p-8 text-slate-400">
-          No satellites match your criteria.
-        </div>
-      )}
     </div>
   );
 };

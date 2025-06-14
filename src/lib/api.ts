@@ -11,7 +11,6 @@ export const fetchSatellites = async (
   // We filter out undefined/null values before creating params
   const queryParams = {
     objectTypes: params.objectTypes?.join(","),
-    orbitCodes: params.orbitCodes?.join(","), // <-- ADD THIS LINE
     attributes: params.attributes?.join(","),
   };
 

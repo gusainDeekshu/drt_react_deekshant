@@ -22,7 +22,7 @@ const FilterGroup: FC<FilterGroupProps> = ({ title, options, selectedItems, onTo
         <button
           key={item}
           onClick={() => onToggle(item)}
-          className={`px-3 py-1 text-sm rounded-lg transition-colors ${
+          className={`px-3 py-1 text-sm rounded-lg transition-colors text-slate-400 cursor-pointer ${
             selectedItems.includes(item) ? activeColor : "bg-slate-700 hover:bg-slate-600"
           }`}
         >
@@ -84,28 +84,28 @@ const Filters: FC<FiltersProps> = ({ onApply, resultCount, isUpdating }) => {
           options={OBJECT_TYPES}
           selectedItems={objectTypes}
           onToggle={(item) => toggleSelection(item, objectTypes, setObjectTypes)}
-          activeColor="bg-blue-600 text-white"
+          activeColor="bg-purple-700 text-white"
         />
         <FilterGroup
           title="Orbit Codes"
           options={ORBIT_CODES}
           selectedItems={orbitCodes}
           onToggle={(item) => toggleSelection(item, orbitCodes, setOrbitCodes)}
-          activeColor="bg-green-600 text-white"
+          activeColor="bg-purple-700 text-white"
         />
       </div>
 
       <div className="flex items-center gap-6 pt-4 border-t border-slate-700">
         <div className="flex gap-4">
           <button
-            className="px-6 py-2 bg-purple-600 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-800 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-purple-700 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-800 disabled:cursor-not-allowed cursor-pointer"
             onClick={handleApply}
             disabled={buttonsDisabled}
           >
             Apply Filters
           </button>
           <button
-            className="px-6 py-2 bg-gray-500 text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-700 disabled:cursor-not-allowed"
+            className="px-6 py-2 bg-gray-500 cursor-pointer text-white font-semibold rounded-lg hover:bg-gray-600 transition-colors disabled:bg-gray-700 disabled:cursor-not-allowed"
             onClick={handleClear}
             disabled={buttonsDisabled}
           >

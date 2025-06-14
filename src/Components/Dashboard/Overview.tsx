@@ -11,14 +11,17 @@ import Filters from "@/app/dashboard/components/Filters";
 import SatellitesTable from "@/app/dashboard/components/SatellitesTable";
 import TableSkeleton from "@/app/dashboard/components/TableSkeleton";
 
+// 1. Expanded client-side filter interface
 interface ClientFilters {
   orbitCodes?: string[];
+  objectTypes?: string[];
 }
 
 export default function Overview() {
   // --- STATE MANAGEMENT ---
 
-  const [params, setParams] = useState<FetchParams>({
+  // This state now primarily defines the attributes to fetch, but won't be changed by filters.
+  const [params] = useState<FetchParams>({
     attributes: [
       "noradCatId",
       "name",
@@ -26,8 +29,11 @@ export default function Overview() {
       "objectType",
       "countryCode",
       "orbitCode",
+      "intlDes", 
     ],
   });
+
+  // This state now holds ALL filters that will be applied client-side.
   const [clientFilters, setClientFilters] = useState<ClientFilters>({});
   const [search, setSearch] = useState<string>("");
   const [sortConfig, setSortConfig] = useState<SortConfig>({
@@ -37,46 +43,44 @@ export default function Overview() {
   const debouncedSearch = useDebounce(search, 300);
 
   // --- DATA FETCHING ---
+  // 2. Simplified query. It fetches the data once and won't refetch on filter changes.
   const {
     data = [],
     isLoading,
     isFetching,
     isError,
   } = useQuery<SatelliteData[]>({
-    queryKey: ["satellites", params],
+    queryKey: ["satellites-all", params], // Use a distinct key for the full dataset
     queryFn: () => fetchSatellites(params),
     staleTime: 1000 * 60 * 5,
     refetchOnWindowFocus: false,
   });
 
   // --- DATA PROCESSING ---
+  // 3. All filtering logic is now consolidated here.
   const processedData = useMemo(() => {
     if (!data) return [];
     let result = [...data];
 
-    // --- THIS IS THE UPDATED LOGIC ---
-    // Apply client-side filters with partial matching
+    // Apply client-side objectType filter
+    if (clientFilters.objectTypes && clientFilters.objectTypes.length > 0) {
+      result = _.filter(result, (satellite) =>
+        clientFilters.objectTypes!.includes(satellite.objectType)
+      );
+    }
+
+    // Apply client-side orbitCode filter (with partial matching)
     if (clientFilters.orbitCodes && clientFilters.orbitCodes.length > 0) {
       result = _.filter(result, (satellite) => {
-        // A satellite should be included if its orbitCode is not null/empty...
-        if (!satellite.orbitCode) {
-          return false;
-        }
-        // ...and AT LEAST ONE of the selected filter codes is a substring of the satellite's orbitCode.
-        // e.g., if selected is ["MEO"] and satellite.orbitCode is "NSO/MEO", it's a match.
-        // This is the "type guard"
-        if (clientFilters.orbitCodes && clientFilters.orbitCodes.length > 0) {
-          return clientFilters.orbitCodes.some((selectedCode) =>
-            satellite.orbitCode.includes(selectedCode)
-          );
-        } else {
-          return false;
-        }
+        if (!satellite.orbitCode) return false;
+        // Check if any selected code is a substring of the satellite's orbit code
+        return clientFilters.orbitCodes!.some((selectedCode) =>
+          satellite.orbitCode.includes(selectedCode)
+        );
       });
     }
-    // --- END OF UPDATED LOGIC ---
 
-    // Then, apply client-side search
+    // Apply client-side search (your existing logic is perfect)
     if (debouncedSearch.trim()) {
       const lowerSearch = debouncedSearch.toLowerCase();
       result = _.filter(
@@ -93,7 +97,7 @@ export default function Overview() {
     }
 
     return result;
-  }, [data, debouncedSearch, sortConfig, clientFilters]);
+  }, [data, debouncedSearch, sortConfig, clientFilters]); // Add clientFilters to dependency array
 
   // --- EVENT HANDLERS ---
   const handleSort = (key: SortKey) => {
@@ -102,20 +106,12 @@ export default function Overview() {
     setSortConfig({ key, direction });
   };
 
-  const handleFilterApply = (filters: {
-    objectTypes?: string[];
-    orbitCodes?: string[];
-  }) => {
-    setParams((prev) => ({
-      ...prev,
-      objectTypes: filters.objectTypes,
-    }));
-    setClientFilters({
-      orbitCodes: filters.orbitCodes,
-    });
+  // 4. This handler now ONLY updates client-side filter state.
+  const handleFilterApply = (filters: ClientFilters) => {
+    setClientFilters(filters);
   };
 
-  // --- RENDER LOGIC ---
+  // --- RENDER LOGIC (Unchanged) ---
   return (
     <div className="p-4 md:p-8 space-y-8">
       <SearchBar onSearch={setSearch} />
@@ -123,6 +119,8 @@ export default function Overview() {
       <Filters
         onApply={handleFilterApply}
         resultCount={processedData.length}
+        // The `isUpdating` prop now reflects client-side processing, which is instant.
+        // We can keep it tied to `isFetching` to show a spinner during the initial load or background refetches.
         isUpdating={isFetching && !isLoading}
       />
 
