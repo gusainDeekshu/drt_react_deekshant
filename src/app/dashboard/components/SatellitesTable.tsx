@@ -6,8 +6,6 @@ import { SatelliteData } from "@/types";
 import { clsx } from "clsx";
 import { useSelector, useDispatch } from "react-redux";
 import { AppDispatch } from "@/app/store/store";
-
-// Import actions from BOTH slices
 import {
   toggleSelection,
   selectSelectedIds,
@@ -42,7 +40,7 @@ interface SatellitesTableProps {
   sortConfig: SortConfig;
 }
 
-// --- CHILD COMPONENTS (Updated TableRow) ---
+// --- CHILD COMPONENTS (Unchanged) ---
 
 const SortIcon = memo(({ direction }: { direction: "asc" | "desc" }) => (
   <span className="ml-2">{direction === "asc" ? "▲" : "▼"}</span>
@@ -72,7 +70,6 @@ const TableHeaderCell: FC<{
 );
 TableHeaderCell.displayName = "TableHeaderCell";
 
-// 1. SIMPLIFY TableRow: It only needs ONE handler that takes the full satellite object.
 const TableRow = memo(
   ({
     index,
@@ -82,7 +79,6 @@ const TableRow = memo(
     satellites: SatelliteData[];
     columns: typeof COLUMN_DEFINITIONS;
     selectedIds: Set<string>;
-    // The handler now expects the full satellite object.
     toggleSelection: (satellite: SatelliteData) => void;
   }>) => {
     const { satellites, columns, selectedIds, toggleSelection } = rowData;
@@ -101,7 +97,6 @@ const TableRow = memo(
         )}
       >
         <div className="flex w-[5%] items-center justify-center p-3">
-          {/* 2. CORRECT onChange: Call the single handler with the full 'sat' object. */}
           <input
             type="checkbox"
             checked={isSelected}
@@ -113,8 +108,11 @@ const TableRow = memo(
         {columns.map((col) => (
           <div
             key={col.key}
-            className={clsx(" p-3", isSelected ? "whitespace-normal break-words" : "truncate", col.width)}
-
+            className={clsx(
+              "p-3",
+              isSelected ? "whitespace-normal break-words" : "truncate",
+              col.width
+            )}
           >
             {sat[col.key]}
           </div>
@@ -125,7 +123,7 @@ const TableRow = memo(
 );
 TableRow.displayName = "TableRow";
 
-// --- MAIN COMPONENT (Refactored) ---
+// --- MAIN COMPONENT (Refactored for Responsiveness) ---
 
 const SatellitesTable: FC<SatellitesTableProps> = ({
   data,
@@ -134,7 +132,6 @@ const SatellitesTable: FC<SatellitesTableProps> = ({
 }) => {
   const dispatch: AppDispatch = useDispatch();
 
-  // Get state from the Redux store (this part is correct)
   const selectedIdsArray = useSelector(selectSelectedIds);
   const selectionCount = useSelector(selectSelectionCount);
   const selectionError = useSelector(selectSelectionError);
@@ -144,19 +141,14 @@ const SatellitesTable: FC<SatellitesTableProps> = ({
     [selectedIdsArray]
   );
 
-  // 3. COMBINE LOGIC: Create a single handler that dispatches to BOTH slices.
   const handleToggleSelection = useCallback(
     (satellite: SatelliteData) => {
-      // Dispatch to the slice that stores only IDs
       dispatch(toggleSelection(satellite.noradCatId));
-
-      // ALSO dispatch to the slice that stores the full data objects
       dispatch(toggleSatelliteData(satellite));
     },
     [dispatch]
   );
 
-  // 4. SIMPLIFY itemData: Pass only the single, unified handler.
   const itemData = {
     satellites: data,
     columns: COLUMN_DEFINITIONS,
@@ -164,8 +156,16 @@ const SatellitesTable: FC<SatellitesTableProps> = ({
     toggleSelection: handleToggleSelection,
   };
 
+  // The total height of the list container is 75vh or max 600px. The header is 48px (h-12).
+  // This calculation makes the virtualized list's height responsive as well.
+  const listHeight =
+    typeof window !== "undefined"
+      ? Math.min(window.innerHeight * 0.75, 600) - 48
+      : 552; // Fallback for SSR
+
   return (
-    <div className="space-y-4 bg-slate-800 p-6 rounded-xl">
+    // RESPONSIVE CHANGE: Adjusted padding for smaller screens
+    <div className="space-y-4 bg-slate-800 p-4 md:p-6 rounded-xl">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h2 className="text-2xl font-semibold text-white">Satellite Data</h2>
@@ -177,39 +177,49 @@ const SatellitesTable: FC<SatellitesTableProps> = ({
           <p className="text-sm text-red-400">{selectionError}</p>
         )}
       </div>
-      <div className="flex h-[600px] w-full flex-col bg-[#1A202C] rounded-lg">
-        <div className="flex flex-shrink-0 bg-[#1A202C] h-12 rounded-t-lg">
-          <div className="flex w-[5%] items-center justify-center p-3 "></div>
-          {COLUMN_DEFINITIONS.map((col) => (
-            <div key={col.key} className={col.width}>
-              <TableHeaderCell
-                label={col.label}
-                sortKey={col.key}
-                onSort={onSort}
-                isSorted={sortConfig.key === col.key}
-                sortDirection={sortConfig.direction}
-                align={col.align}
-              />
-            </div>
-          ))}
-        </div>
-        <div className="flex-grow">
-          {data.length > 0 ? (
-            <List
-              height={552}
-              itemCount={data.length}
-              itemSize={48}
-              width="100%"
-              itemData={itemData}
-              className="[&::-webkit-scrollbar]:w-2 [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500"
-            >
-              {TableRow}
-            </List>
-          ) : (
-            <div className="flex h-full items-center justify-center text-slate-400">
-              No satellites found.
-            </div>
-          )}
+
+      {/* RESPONSIVE CHANGE: Added a wrapper to handle horizontal overflow on small screens */}
+      <div className="overflow-x-auto">
+        {/*
+          RESPONSIVE CHANGE:
+          1. A minimum width is set to prevent columns from becoming too squished. This triggers the overflow scrollbar.
+          2. Height is now relative to the viewport height (vh) with a max-height to prevent it from being too tall on large monitors.
+        */}
+        <div className="flex w-full min-w-[800px] flex-col rounded-lg bg-[#1A202C] h-[75vh] max-h-[600px]">
+          <div className="flex flex-shrink-0 bg-[#1A202C] h-12 rounded-t-lg">
+            <div className="flex w-[5%] items-center justify-center p-3"></div>
+            {COLUMN_DEFINITIONS.map((col) => (
+              <div key={col.key} className={col.width}>
+                <TableHeaderCell
+                  label={col.label}
+                  sortKey={col.key}
+                  onSort={onSort}
+                  isSorted={sortConfig.key === col.key}
+                  sortDirection={sortConfig.direction}
+                  align={col.align}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex-grow">
+            {data.length > 0 ? (
+              <List
+                height={listHeight} // Use the dynamically calculated height
+                itemCount={data.length}
+                itemSize={48}
+                width="100%"
+                itemData={itemData}
+                className="scrollbar scrollbar-w-2 scrollbar-h-2 scrollbar-track-slate-700 scrollbar-thumb-slate-400 scrollbar-thumb-rounded-full"
+              >
+                {TableRow}
+              </List>
+            ) : (
+              <div className="flex h-full items-center justify-center text-slate-400">
+                No satellites found.
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

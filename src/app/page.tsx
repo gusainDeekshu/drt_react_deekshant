@@ -4,16 +4,28 @@ import OverviewCounts from "@/Components/Dashboard/OverviewCounts";
 
 export default function Home() {
   return (
-    <div className=" p-4 flex flex-col space-y-4 md:space-y-0 md:flex-row md:space-x-4 ">
-      {/* First Overview */}
-      <div className="w-full md:w-7/12 ">
+    // Main container using CSS Grid
+    // - p-6: Added slightly more padding for better spacing.
+    // - grid: Enables the grid layout.
+    // - grid-cols-1: On mobile (default), it's a single-column layout.
+    // - lg:grid-cols-12: On large screens (1024px+), it switches to a 12-column grid.
+    // - gap-6: Defines the space between grid items, works for rows and columns.
+    <div className="p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      {/* First Overview (Main Content) */}
+      {/* - col-span-1: On mobile, it spans the single available column.
+          - lg:col-span-7: On large screens, it takes up 7 of the 12 columns. */}
+      <div className="lg:col-span-7">
         <Overview />
       </div>
 
-      {/* Second Overview */}
-      <div className="w-full md:w-5/12 ">
+      {/* Second Overview (Side Content) */}
+      {/* - col-span-1: On mobile, it spans the single available column.
+          - lg:col-span-5: On large screens, it takes up the remaining 5 of the 12 columns. */}
+      <div className="lg:col-span-5">
         <OverviewCounts />
       </div>
+
     </div>
   );
 }

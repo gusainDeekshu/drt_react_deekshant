@@ -76,9 +76,15 @@ const Filters: FC<FiltersProps> = ({ onApply, resultCount, isUpdating }) => {
 
   const buttonsDisabled = isUpdating;
 
-  return (
-    <div className="space-y-6 bg-slate-800 p-6 rounded-xl">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+   return (
+    // Main Container:
+    // - Use responsive padding for better spacing on mobile vs. desktop.
+    <div className="space-y-6 bg-slate-800 p-4 md:p-6 rounded-xl">
+      
+      {/* Filter Groups */}
+      {/* - This was already responsive, which is great! 
+          - We can use responsive gaps for even finer control. */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
         <FilterGroup
           title="Object Types"
           options={OBJECT_TYPES}
@@ -95,10 +101,17 @@ const Filters: FC<FiltersProps> = ({ onApply, resultCount, isUpdating }) => {
         />
       </div>
 
-      <div className="flex items-center gap-6 pt-4 border-t border-slate-700">
-        <div className="flex gap-4">
+      {/* Actions and Results Footer */}
+      {/* - On mobile (default): Stacks vertically (flex-col) with a gap.
+          - On medium screens+ (md:): Switches to a row, aligns items in the center, 
+            and justifies with space between. */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 pt-4 border-t border-slate-700">
+        
+        {/* Button Group */}
+        {/* - flex-wrap allows buttons to stack vertically on very narrow screens if needed. */}
+        <div className="flex flex-wrap gap-4">
           <button
-            className="px-6 py-2 bg-purple-700 text-white font-semibold rounded-lg hover:bg-purple-700 transition-colors disabled:bg-purple-800 disabled:cursor-not-allowed cursor-pointer"
+            className="px-6 py-2 bg-purple-700 text-white font-semibold rounded-lg hover:bg-purple-600 transition-colors disabled:bg-purple-800 disabled:cursor-not-allowed cursor-pointer"
             onClick={handleApply}
             disabled={buttonsDisabled}
           >
@@ -112,7 +125,11 @@ const Filters: FC<FiltersProps> = ({ onApply, resultCount, isUpdating }) => {
             Clear
           </button>
         </div>
-        <div className="text-slate-300">
+        
+        {/* Result Count and Status */}
+        {/* - On mobile, text is centered for a cleaner look when stacked.
+            - On desktop, it's aligned to the right. */}
+        <div className="text-slate-300 text-center md:text-right">
           {isUpdating ? (
             <span className="italic">Updating...</span>
           ) : (
