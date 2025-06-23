@@ -1,3 +1,9 @@
+# Satellite Dashboard
+
+![Dashboard Screenshot](dashboard-screenshot.png)
+
+This is a screenshot of the Satellite Dashboard web application, showcasing the main features including filtering, statistics, and data tables.
+
 Perfect.
 Here is your **Final Project Documentation** — fully polished, ready for your resume, LinkedIn, portfolio, interviews, or team handover 👇
 
@@ -9,7 +15,7 @@ Here is your **Final Project Documentation** — fully polished, ready for your 
 
 The **Satellite Tracking & Analysis System** is a specialized web application built to monitor, analyze, and manage data related to space objects such as satellites, debris, and other orbital assets.
 
-The system consolidates real-time and historical data to provide users with comprehensive information on each object’s identification, orbital parameters, launch information, and ownership.
+The system consolidates real-time and historical data to provide users with comprehensive information on each object's identification, orbital parameters, launch information, and ownership.
 
 ---
 
